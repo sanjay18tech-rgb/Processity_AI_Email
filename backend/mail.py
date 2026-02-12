@@ -136,6 +136,49 @@ async def list_emails(filter: EmailFilter, service = Depends(get_gmail_service))
         print(f"Gmail API Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/thread/{thread_id}")
+async def get_thread(thread_id: str, service = Depends(get_gmail_service)):
+    """Fetch all messages in a thread, sorted chronologically."""
+    try:
+        thread = service.users().threads().get(
+            userId='me', id=thread_id, format='full'
+        ).execute()
+        
+        thread_messages = []
+        for msg in thread.get('messages', []):
+            headers = msg['payload']['headers']
+            subject = next((h['value'] for h in headers if h['name'] == 'Subject'), '(no subject)')
+            msg_from = next((h['value'] for h in headers if h['name'] == 'From'), '(unknown)')
+            msg_to = next((h['value'] for h in headers if h['name'] == 'To'), '')
+            date = next((h['value'] for h in headers if h['name'] == 'Date'), '')
+            internal_date = int(msg.get('internalDate', 0))  # Epoch ms from Gmail
+            
+            body_html, body_text = extract_body(msg['payload'])
+            
+            thread_messages.append({
+                "id": msg['id'],
+                "threadId": msg['threadId'],
+                "labelIds": msg.get('labelIds', []),
+                "snippet": msg.get('snippet', ''),
+                "subject": subject,
+                "from": msg_from,
+                "to": msg_to,
+                "date": date,
+                "internalDate": internal_date,
+                "isRead": 'UNREAD' not in msg.get('labelIds', []),
+                "bodyHtml": body_html,
+                "bodyText": body_text
+            })
+        
+        # Sort by internalDate for correct chronological order
+        thread_messages.sort(key=lambda m: m['internalDate'])
+        return thread_messages
+    
+    except Exception as e:
+        print(f"Thread Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 class SearchQuery(BaseModel):
     query: str
     maxResults: int = 10
@@ -209,6 +252,46 @@ async def send_email(email: ComposeEmail, service = Depends(get_gmail_service)):
         return sent_message
     except Exception as e:
         print(f"Send Email Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+class ReplyEmail(BaseModel):
+    to: str
+    subject: str
+    body: str
+    messageId: str  # message ID being replied to
+    threadId: str   # thread ID for threading
+
+@router.post("/reply")
+async def reply_to_email(email: ReplyEmail, service = Depends(get_gmail_service)):
+    try:
+        # Get the original message to extract Message-ID header for threading
+        original = service.users().messages().get(userId='me', id=email.messageId, format='metadata', metadataHeaders=['Message-ID']).execute()
+        original_msg_id_header = ''
+        for header in original.get('payload', {}).get('headers', []):
+            if header['name'] == 'Message-ID':
+                original_msg_id_header = header['value']
+                break
+
+        message = EmailMessage()
+        message.set_content(email.body)
+        message['To'] = email.to
+        message['Subject'] = email.subject
+        if original_msg_id_header:
+            message['In-Reply-To'] = original_msg_id_header
+            message['References'] = original_msg_id_header
+        
+        encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+        
+        reply_message = service.users().messages().send(
+            userId="me",
+            body={
+                'raw': encoded_message,
+                'threadId': email.threadId
+            }
+        ).execute()
+        return reply_message
+    except Exception as e:
+        print(f"Reply Email Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 class MarkReadRequest(BaseModel):
