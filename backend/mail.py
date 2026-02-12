@@ -210,3 +210,45 @@ async def send_email(email: ComposeEmail, service = Depends(get_gmail_service)):
     except Exception as e:
         print(f"Send Email Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+class MarkReadRequest(BaseModel):
+    messageIds: List[str]
+
+@router.post("/mark-read")
+async def mark_as_read(req: MarkReadRequest, service = Depends(get_gmail_service)):
+    try:
+        for msg_id in req.messageIds:
+            service.users().messages().modify(
+                userId='me',
+                id=msg_id,
+                body={'removeLabelIds': ['UNREAD']}
+            ).execute()
+        return {"success": True}
+    except Exception as e:
+        print(f"Mark Read Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+class DraftEmail(BaseModel):
+    to: str = ""
+    subject: str = ""
+    body: str = ""
+
+@router.post("/drafts/create")
+async def create_draft(email: DraftEmail, service = Depends(get_gmail_service)):
+    try:
+        message = EmailMessage()
+        message.set_content(email.body)
+        if email.to:
+            message['To'] = email.to
+        message['Subject'] = email.subject
+        
+        encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+        
+        draft = service.users().drafts().create(
+            userId='me',
+            body={'message': {'raw': encoded_message}}
+        ).execute()
+        return draft
+    except Exception as e:
+        print(f"Create Draft Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
