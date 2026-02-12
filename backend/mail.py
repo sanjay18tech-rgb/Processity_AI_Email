@@ -136,6 +136,61 @@ async def list_emails(filter: EmailFilter, service = Depends(get_gmail_service))
         print(f"Gmail API Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+class SearchQuery(BaseModel):
+    query: str
+    maxResults: int = 10
+
+@router.post("/search")
+async def search_emails(search: SearchQuery, service = Depends(get_gmail_service)):
+    """Full-text Gmail search across subjects, body, and metadata."""
+    try:
+        results = service.users().messages().list(
+            userId='me',
+            q=search.query,
+            maxResults=search.maxResults
+        ).execute()
+        
+        messages = results.get('messages', [])
+        email_list = []
+        
+        if messages:
+            batch = service.new_batch_http_request()
+            
+            def callback(request_id, response, exception):
+                if exception:
+                    print(f"Search error for {request_id}: {exception}")
+                else:
+                    headers = response['payload']['headers']
+                    subject = next((h['value'] for h in headers if h['name'] == 'Subject'), '(no subject)')
+                    curr_from = next((h['value'] for h in headers if h['name'] == 'From'), '(unknown)')
+                    date = next((h['value'] for h in headers if h['name'] == 'Date'), '')
+                    
+                    body_html, body_text = extract_body(response['payload'])
+                    
+                    email_list.append({
+                        "id": response['id'],
+                        "threadId": response['threadId'],
+                        "labelIds": response.get('labelIds', []),
+                        "snippet": response.get('snippet', ''),
+                        "subject": subject,
+                        "from": curr_from,
+                        "date": date,
+                        "isRead": 'UNREAD' not in response.get('labelIds', []),
+                        "bodyHtml": body_html,
+                        "bodyText": body_text
+                    })
+            
+            for msg in messages:
+                batch.add(service.users().messages().get(userId='me', id=msg['id'], format='full'), callback=callback)
+            
+            batch.execute()
+        
+        return email_list
+    
+    except Exception as e:
+        print(f"Search Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/send")
 async def send_email(email: ComposeEmail, service = Depends(get_gmail_service)):
     try:
