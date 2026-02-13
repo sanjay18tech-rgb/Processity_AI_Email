@@ -267,8 +267,8 @@ function EmailDetail({ email, onBack }: { email: Email; onBack: () => void }) {
 
     return (
         <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-500 pb-20">
-            {/* Top bar - Fixed visibility by making it opaque and removing rounded corners */}
-            <div className="sticky top-0 z-20 flex items-center gap-4 bg-background p-4 -mt-4 md:-mt-6 -mx-4 md:-mx-6 border-b border-border/50 shadow-sm transition-all duration-200">
+            {/* Top bar - Fixed visibility by making it opaque and matching parent padding for sticky positioning */}
+            <div className="sticky top-[-1rem] md:top-[-1.5rem] z-20 flex items-center gap-4 bg-background px-4 py-4 -mt-4 md:-mt-6 -mx-4 md:-mx-6 border-b border-border shadow-sm transition-all duration-200">
                 <Button variant="ghost" size="icon" onClick={onBack} className="hover:bg-accent/50">
                     <ArrowLeft className="h-5 w-5" />
                 </Button>

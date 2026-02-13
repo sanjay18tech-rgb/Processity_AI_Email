@@ -27,7 +27,7 @@ export function Header() {
     }, [searchQuery]);
 
     return (
-        <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-border/40 bg-background/60 px-6 backdrop-blur-xl transition-all">
+        <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-border/40 bg-background px-6 transition-all">
             <div className="flex flex-1 items-center gap-4">
                 <div className="relative w-full max-w-md group">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
