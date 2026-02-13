@@ -422,6 +422,7 @@ export function EmailList({ emails, selectedId, onSelect }: EmailListProps) {
                         animation: `fadeIn 0.5s ease-out ${index * 0.05}s both`
                     }}
                     onClick={() => handleSelect(email.id)}
+                    data-email-id={email.id}
                 >
                     <div className="flex w-full items-start justify-between gap-4">
                         <div className="flex items-center gap-3">

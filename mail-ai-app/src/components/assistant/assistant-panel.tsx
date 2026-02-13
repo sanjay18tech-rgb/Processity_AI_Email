@@ -196,7 +196,7 @@ export function AssistantPanel() {
                             {/* Header / Drag Handle */}
                             <div className="p-4 border-b border-white/5 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-transparent flex items-center justify-between cursor-grab active:cursor-grabbing select-none group/header pl-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center ring-1 ring-primary/30 group-hover/header:scale-110 transition-transform">
+                                    <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center ring-1 ring-primary/30 group-hover/header:scale-110 transition-transform ai-sparkle-icon">
                                         <Sparkles className="h-4 w-4 text-primary" />
                                     </div>
                                     <div>

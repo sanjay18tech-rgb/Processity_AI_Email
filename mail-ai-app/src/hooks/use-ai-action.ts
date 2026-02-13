@@ -58,10 +58,22 @@ export function useAIAction() {
     const executeAction = async (action: AIAction) => {
         console.log('Executing AI Action:', action);
 
+        // Visual indicator in assistant panel sparkle icon
+        const sparkle = document.querySelector('.ai-sparkle-icon');
+        if (sparkle) {
+            sparkle.classList.add('ai-highlight');
+            setTimeout(() => sparkle.classList.remove('ai-highlight'), 1000);
+        }
+
         switch (action.type) {
             case 'compose': {
+                const composeBtn = document.querySelector('[data-nav-item="compose"]');
+                if (composeBtn) {
+                    composeBtn.classList.add('ai-highlight');
+                    setTimeout(() => composeBtn.classList.remove('ai-highlight'), 1000);
+                }
                 openCompose();
-                await new Promise(r => setTimeout(r, 200));
+                await new Promise(r => setTimeout(r, 400));
                 await typewriterField(updateField, 'to', action.to || '', 25);
                 await typewriterField(updateField, 'subject', action.subject || '', 20);
                 await typewriterField(updateField, 'body', action.body || '', 10);
@@ -120,6 +132,11 @@ export function useAIAction() {
                 break;
 
             case 'search':
+                const searchInput = document.querySelector('input[placeholder="Search emails..."]');
+                if (searchInput) {
+                    searchInput.classList.add('ai-highlight');
+                    setTimeout(() => searchInput.classList.remove('ai-highlight'), 1000);
+                }
                 if (action.filters) {
                     setFilter({ ...action.filters, query: action.query });
                 } else {
