@@ -335,3 +335,19 @@ async def create_draft(email: DraftEmail, service = Depends(get_gmail_service)):
     except Exception as e:
         print(f"Create Draft Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+class TrashRequest(BaseModel):
+    messageId: str
+
+@router.post("/trash")
+async def trash_email(req: TrashRequest, service = Depends(get_gmail_service)):
+    """Move an email to trash."""
+    try:
+        service.users().messages().trash(
+            userId='me',
+            id=req.messageId
+        ).execute()
+        return {"success": True}
+    except Exception as e:
+        print(f"Trash Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
