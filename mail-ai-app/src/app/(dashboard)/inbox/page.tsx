@@ -10,6 +10,11 @@ import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 import { PaginationControls } from '@/components/mail/pagination-controls';
+import { DateRangePicker } from '@/components/mail/date-range-picker';
+import { DateRange } from 'react-day-picker';
+import { format, addDays, subDays } from 'date-fns';
+import { useState } from 'react';
+import { EmailFilter } from '@/types/email';
 
 export default function InboxPage() {
     const {
@@ -22,41 +27,76 @@ export default function InboxPage() {
         currentPage,
         pageTokens,
         setNextPageToken,
-        dateFrom,
-        dateTo
+        filter,
+        setFilter
     } = useMailStore();
+
+    const [dateRange, setDateRange] = useState<DateRange | undefined>();
+
+    // Sync store filters to local dateRange (for AI triggered actions)
+    useEffect(() => {
+        // Sync from store if it has a valid range
+        if (filter.after && filter.before) {
+            const from = new Date(filter.after);
+            const to = subDays(new Date(filter.before), 1);
+
+            // Only update if it differs from current local state to avoid override during partial selection
+            const currentFromStr = dateRange?.from ? format(dateRange.from, 'yyyy/MM/dd') : '';
+            const currentToStr = dateRange?.to ? format(dateRange.to, 'yyyy/MM/dd') : '';
+            const storeFromStr = filter.after;
+            const storeToStr = format(to, 'yyyy/MM/dd');
+
+            if (currentFromStr !== storeFromStr || currentToStr !== storeToStr) {
+                setDateRange({ from, to });
+            }
+        } else if (!filter.after && !filter.before) {
+            // Only clear local if store is empty AND we aren't in a partial selection
+            if (dateRange?.from && !dateRange?.to) {
+                // Keep the partial selection
+                return;
+            }
+            if (dateRange) setDateRange(undefined);
+        }
+    }, [filter.after, filter.before]);
+
+    // Sync local dateRange to store (for UI triggered actions)
+    const handleDateChange = (range: DateRange | undefined) => {
+        setDateRange(range);
+
+        // Only apply if we have a full range (or if it's cleared)
+        if (!range) {
+            setFilter({ after: undefined, before: undefined });
+        } else if (range.from && range.to) {
+            const after = format(range.from, 'yyyy/MM/dd');
+            // Gmail's 'before' is exclusive. To make it inclusive of the selected day, add 1 day.
+            const beforeInclusive = addDays(range.to, 1);
+            const before = format(beforeInclusive, 'yyyy/MM/dd');
+            setFilter({ after, before });
+        }
+        // If only 'from' is selected, we don't update the global filter yet
+    };
+
+    const handleClearDate = () => {
+        setDateRange(undefined);
+        setFilter({ after: undefined, before: undefined });
+    };
 
     useEffect(() => { setView('inbox'); }, [setView]);
 
+    const formattedAfter = filter.after;
+    const formattedBefore = filter.before;
+
     const { data, isLoading, error, refetch } = useQuery({
-        queryKey: ['emails', 'inbox', searchQuery, dateFrom, dateTo, currentPage],
+        queryKey: ['emails', 'inbox', searchQuery, currentPage, formattedAfter, formattedBefore],
         queryFn: async () => {
             try {
-                // Construct query with date filters
-                let queryParts = [];
-                if (searchQuery) {
-                    queryParts.push(searchQuery);
-                }
-
-                // Date filter logic (Gmail API: 'after' is exclusive, 'before' is exclusive)
-                if (dateFrom) {
-                    const fromDate = new Date(dateFrom);
-                    fromDate.setDate(fromDate.getDate() - 1); // Subtract 1 day to include selected date
-                    queryParts.push(`after:${fromDate.toISOString().split('T')[0].replace(/-/g, '/')}`);
-                }
-                if (dateTo) {
-                    const toDate = new Date(dateTo);
-                    toDate.setDate(toDate.getDate() + 1); // Add 1 day to include selected date
-                    queryParts.push(`before:${toDate.toISOString().split('T')[0].replace(/-/g, '/')}`);
-                }
-
-                let fullQuery = queryParts.join(' ');
-
                 const response = await listEmails({
                     labelIds: ['INBOX'],
                     maxResults: 50,
-                    q: fullQuery.trim() || undefined,
-                    pageToken: pageTokens[currentPage]
+                    query: searchQuery,
+                    pageToken: pageTokens[currentPage],
+                    after: formattedAfter,
+                    before: formattedBefore
                 });
                 return response;
             } catch (e: any) {
@@ -65,7 +105,7 @@ export default function InboxPage() {
             }
         },
         retry: false,
-        refetchInterval: false, // Disabled auto-refresh to use Webhooks/Manual refresh
+        refetchInterval: 30000, // Auto-refresh every 30 seconds
     });
 
     // Sync to global store for AI assistant access
@@ -151,14 +191,22 @@ export default function InboxPage() {
     return (
         <div className="space-y-6 w-full max-w-[1600px] mx-auto">
             {!selectedEmailId && (
-                <div className="flex items-end justify-between pb-2 border-b border-border/40">
+                <div className="flex items-end justify-between pb-4 border-b border-border/40">
                     <div className="space-y-1">
                         <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">Inbox</h1>
                         <p className="text-sm text-muted-foreground">
                             Manage your incoming messages
                         </p>
                     </div>
-                    <PaginationControls count={Array.isArray(data) ? data.length : (data?.emails?.length || 0)} />
+                    <div className="flex items-center gap-4">
+                        <DateRangePicker
+                            date={dateRange}
+                            setDate={handleDateChange}
+                            onClear={handleClearDate}
+                        />
+                        <div className="h-8 w-[1px] bg-border/40" />
+                        <PaginationControls count={Array.isArray(data) ? data.length : (data?.emails?.length || 0)} />
+                    </div>
                 </div>
             )}
 
