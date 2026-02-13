@@ -12,7 +12,7 @@ import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { PaginationControls } from '@/components/mail/pagination-controls';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
-import { format, addDays, subDays } from 'date-fns';
+import { format } from 'date-fns';
 import { useState } from 'react';
 import { EmailFilter } from '@/types/email';
 
@@ -38,13 +38,13 @@ export default function InboxPage() {
         // Sync from store if it has a valid range
         if (filter.after && filter.before) {
             const from = new Date(filter.after);
-            const to = subDays(new Date(filter.before), 1);
+            const to = new Date(filter.before);
 
             // Only update if it differs from current local state to avoid override during partial selection
             const currentFromStr = dateRange?.from ? format(dateRange.from, 'yyyy/MM/dd') : '';
             const currentToStr = dateRange?.to ? format(dateRange.to, 'yyyy/MM/dd') : '';
             const storeFromStr = filter.after;
-            const storeToStr = format(to, 'yyyy/MM/dd');
+            const storeToStr = filter.before;
 
             if (currentFromStr !== storeFromStr || currentToStr !== storeToStr) {
                 setDateRange({ from, to });
@@ -68,9 +68,7 @@ export default function InboxPage() {
             setFilter({ after: undefined, before: undefined });
         } else if (range.from && range.to) {
             const after = format(range.from, 'yyyy/MM/dd');
-            // Gmail's 'before' is exclusive. To make it inclusive of the selected day, add 1 day.
-            const beforeInclusive = addDays(range.to, 1);
-            const before = format(beforeInclusive, 'yyyy/MM/dd');
+            const before = format(range.to, 'yyyy/MM/dd');
             setFilter({ after, before });
         }
         // If only 'from' is selected, we don't update the global filter yet
