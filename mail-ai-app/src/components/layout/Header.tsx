@@ -3,7 +3,7 @@
 import { Bell, Search, Moon, Sun, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DatePickerWithRange } from '@/components/ui/date-range-picker';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { format } from 'date-fns';
@@ -42,7 +42,7 @@ export function Header() {
                     />
                 </div>
                 <div className="flex items-center gap-2">
-                    <DatePickerWithRange
+                    <DateRangePicker
                         className="w-auto"
                         date={{
                             from: dateFrom ? new Date(dateFrom) : undefined,
