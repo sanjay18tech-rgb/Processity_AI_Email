@@ -4,6 +4,7 @@ export interface Message {
     id: string;
     role: 'user' | 'assistant';
     content: string;
+    action?: any;
 }
 
 interface AssistantState {

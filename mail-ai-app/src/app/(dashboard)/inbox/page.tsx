@@ -21,19 +21,41 @@ export default function InboxPage() {
         searchQuery,
         currentPage,
         pageTokens,
-        setNextPageToken
+        setNextPageToken,
+        dateFrom,
+        dateTo
     } = useMailStore();
 
     useEffect(() => { setView('inbox'); }, [setView]);
 
     const { data, isLoading, error, refetch } = useQuery({
-        queryKey: ['emails', 'inbox', searchQuery, currentPage],
+        queryKey: ['emails', 'inbox', searchQuery, dateFrom, dateTo, currentPage],
         queryFn: async () => {
             try {
+                // Construct query with date filters
+                let queryParts = [];
+                if (searchQuery) {
+                    queryParts.push(searchQuery);
+                }
+
+                // Date filter logic (Gmail API: 'after' is exclusive, 'before' is exclusive)
+                if (dateFrom) {
+                    const fromDate = new Date(dateFrom);
+                    fromDate.setDate(fromDate.getDate() - 1); // Subtract 1 day to include selected date
+                    queryParts.push(`after:${fromDate.toISOString().split('T')[0].replace(/-/g, '/')}`);
+                }
+                if (dateTo) {
+                    const toDate = new Date(dateTo);
+                    toDate.setDate(toDate.getDate() + 1); // Add 1 day to include selected date
+                    queryParts.push(`before:${toDate.toISOString().split('T')[0].replace(/-/g, '/')}`);
+                }
+
+                let fullQuery = queryParts.join(' ');
+
                 const response = await listEmails({
                     labelIds: ['INBOX'],
                     maxResults: 50,
-                    query: searchQuery,
+                    q: fullQuery.trim() || undefined,
                     pageToken: pageTokens[currentPage]
                 });
                 return response;
@@ -43,7 +65,7 @@ export default function InboxPage() {
             }
         },
         retry: false,
-        refetchInterval: 30000, // Auto-refresh every 30 seconds
+        refetchInterval: false, // Disabled auto-refresh to use Webhooks/Manual refresh
     });
 
     // Sync to global store for AI assistant access

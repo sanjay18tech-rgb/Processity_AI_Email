@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, Header, Depends
+from fastapi import APIRouter, HTTPException, Header, Depends, Request
 from pydantic import BaseModel, EmailStr
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 import base64
+import json
 from email.message import EmailMessage
 
 router = APIRouter(prefix="/api/mail", tags=["mail"])
@@ -336,9 +337,6 @@ async def create_draft(email: DraftEmail, service = Depends(get_gmail_service)):
         print(f"Create Draft Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-class TrashRequest(BaseModel):
-    messageId: str
-
 @router.post("/trash")
 async def trash_email(req: TrashRequest, service = Depends(get_gmail_service)):
     """Move an email to trash."""
@@ -351,3 +349,61 @@ async def trash_email(req: TrashRequest, service = Depends(get_gmail_service)):
     except Exception as e:
         print(f"Trash Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+class WatchRequest(BaseModel):
+    topicName: str
+    labelIds: List[str] = ['INBOX']
+
+@router.post("/watch")
+async def watch_gmail(req: WatchRequest, service = Depends(get_gmail_service)):
+    """Setup Gmail push notifications to the specified Pub/Sub topic."""
+    try:
+        request = {
+            'labelIds': req.labelIds,
+            'topicName': req.topicName,
+            'labelFilterAction': 'include'
+        }
+        response = service.users().watch(userId='me', body=request).execute()
+        print(f"Watch response: {response}")
+        return response
+    except Exception as e:
+        print(f"Watch Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+class PushMessage(BaseModel):
+    message: Dict[str, Any]
+    subscription: str
+
+@router.post("/webhook")
+async def gmail_webhook(request: Request):
+    """Handle incoming Pub/Sub push notifications."""
+    try:
+        # 1. Parse incoming JSON
+        body = await request.json()
+        print(f"Webhook received raw body: {body}")
+        
+        # 2. Extract Pub/Sub message data
+        if 'message' not in body or 'data' not in body['message']:
+            return {"status": "ignored", "reason": "invalid_format"}
+            
+        encoded_data = body['message']['data']
+        decoded_data = base64.b64decode(encoded_data).decode('utf-8')
+        print(f"Webhook decoded data: {decoded_data}")
+        
+        # 3. Parse the actual Gmail notification JSON
+        notification = json.loads(decoded_data)
+        email_address = notification.get('emailAddress')
+        history_id = notification.get('historyId')
+        
+        print(f"Notification for {email_address}, historyId: {history_id}")
+        
+        # TODO: Trigger a sync/refresh logic here (e.g. via WebSocket or just cache invalidation)
+        # For now, we just log it. The frontend polling is disabled, so we rely on user manual refresh 
+        # or we could implement a simple SSE (Server Sent Events) to notify frontend.
+        
+        return {"status": "received"}
+        
+    except Exception as e:
+        print(f"Webhook Error: {e}")
+        # Return 200 OK anyway to prevent Pub/Sub from retrying
+        return {"status": "error", "detail": str(e)}

@@ -21,19 +21,38 @@ export default function TrashPage() {
         searchQuery,
         currentPage,
         pageTokens,
-        setNextPageToken
+        setNextPageToken,
+        dateFrom,
+        dateTo
     } = useMailStore();
 
     useEffect(() => { setView('trash'); }, [setView]);
 
     const { data, isLoading, error, refetch } = useQuery({
-        queryKey: ['emails', 'trash', searchQuery, currentPage],
+        queryKey: ['emails', 'trash', searchQuery, dateFrom, dateTo, currentPage],
         queryFn: async () => {
             try {
+                const queryParts = [];
+                if (searchQuery) {
+                    queryParts.push(searchQuery);
+                }
+                // Date filter logic
+                if (dateFrom) {
+                    const fromDate = new Date(dateFrom);
+                    fromDate.setDate(fromDate.getDate() - 1);
+                    queryParts.push(`after:${fromDate.toISOString().split('T')[0].replace(/-/g, '/')}`);
+                }
+                if (dateTo) {
+                    const toDate = new Date(dateTo);
+                    toDate.setDate(toDate.getDate() + 1);
+                    queryParts.push(`before:${toDate.toISOString().split('T')[0].replace(/-/g, '/')}`);
+                }
+                let fullQuery = queryParts.join(' ');
+
                 return await listEmails({
                     labelIds: ['TRASH'],
                     maxResults: 50,
-                    query: searchQuery,
+                    q: fullQuery.trim() || undefined,
                     pageToken: pageTokens[currentPage]
                 });
             } catch (e: any) {
@@ -42,6 +61,7 @@ export default function TrashPage() {
             }
         },
         retry: false,
+        refetchInterval: false,
     });
 
     // Sync to global store

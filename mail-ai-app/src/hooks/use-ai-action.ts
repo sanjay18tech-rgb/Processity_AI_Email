@@ -127,7 +127,20 @@ export function useAIAction() {
             }
 
             case 'filter':
-                setFilter(action.filters);
+                if (action.filters) {
+                    const { after, before, ...otherFilters } = action.filters;
+
+                    // Handle date filters separately as they live in top-level state
+                    if (after || before) {
+                        const { setDateRange } = useMailStore.getState();
+                        setDateRange(after || null, before || null);
+                    }
+
+                    // Handle other filters
+                    if (Object.keys(otherFilters).length > 0) {
+                        setFilter(otherFilters);
+                    }
+                }
                 toast.info('Filters applied');
                 break;
 
@@ -280,6 +293,52 @@ export function useAIAction() {
             case 'clear_filters':
                 setFilter({});
                 toast.info('Filters cleared');
+                break;
+
+            case 'logout':
+                const logoutBtn = document.querySelector('[data-nav-item="logout"]');
+                if (logoutBtn) {
+                    logoutBtn.classList.add('ai-highlight');
+                    setTimeout(() => logoutBtn.classList.remove('ai-highlight'), 1000);
+                }
+                toast.info('Logging out...');
+                await new Promise(r => setTimeout(r, 800)); // Visual delay
+                try {
+                    await fetch('/api/auth/logout', { method: 'POST' });
+                    window.location.href = '/';
+                } catch (error) {
+                    console.error('Logout failed', error);
+                    toast.error('Logout failed');
+                }
+                break;
+
+            case 'discard_compose':
+                if (action.needsConfirmation) {
+                    addMessage({
+                        role: 'assistant',
+                        content: 'Do you want to save this draft before discarding?',
+                        action: undefined // Clear action to stop loop
+                    });
+                    // Here we ideally should have a way to set pending context, but for now relying on user reply
+                    break;
+                }
+
+                if (action.saveDraft) {
+                    const draftTo = useComposeStore.getState().to;
+                    const draftSubject = useComposeStore.getState().subject;
+                    const draftBody = useComposeStore.getState().body;
+                    try {
+                        await saveDraft({ to: draftTo, subject: draftSubject, body: draftBody });
+                        toast.success('Draft saved and discarded.');
+                    } catch (error) {
+                        toast.error('Failed to save draft.');
+                    }
+                } else {
+                    toast.info('Draft discarded.');
+                }
+
+                reset();
+                closeCompose();
                 break;
 
             default:

@@ -30,7 +30,9 @@ export type AIAction =
   | SaveDraftAction
   | SummarizeAction
   | GmailSearchAction
-  | ClearAction;
+  | ClearAction
+  | LogoutAction
+  | DiscardComposeAction;
 
 export interface BaseAction {
   type: string;
@@ -48,7 +50,7 @@ export interface ComposeAction extends BaseAction {
 
 export interface NavigateAction extends BaseAction {
   type: 'navigate';
-  view: 'inbox' | 'sent' | 'compose';
+  view: 'inbox' | 'sent' | 'compose' | 'trash';
 }
 
 export interface SearchAction extends BaseAction {
@@ -95,6 +97,16 @@ export interface ClearAction extends BaseAction {
 export interface GmailSearchAction extends BaseAction {
   type: 'gmail_search';
   query: string;
+}
+
+export interface LogoutAction extends BaseAction {
+  type: 'logout';
+}
+
+export interface DiscardComposeAction extends BaseAction {
+  type: 'discard_compose';
+  saveDraft?: boolean; // If true, save draft before discarding. If false, just discard.
+  needsConfirmation?: boolean; // If true, ask user for confirmation
 }
 
 // AI Response Parsing

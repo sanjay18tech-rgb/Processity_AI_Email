@@ -192,6 +192,15 @@ export function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
                                 "w-full justify-start gap-3 text-destructive hover:bg-destructive/10 hover:text-destructive",
                                 isCollapsed && "justify-center px-0"
                             )}
+                            onClick={async () => {
+                                try {
+                                    await fetch('/api/auth/logout', { method: 'POST' });
+                                    window.location.href = '/';
+                                } catch (error) {
+                                    console.error('Logout failed', error);
+                                }
+                            }}
+                            data-nav-item="logout"
                         >
                             <LogOut className="h-5 w-5" />
                             {!isCollapsed && <span>Logout</span>}

@@ -21,29 +21,44 @@ export default function SentPage() {
         searchQuery,
         currentPage,
         pageTokens,
-        setNextPageToken
+        setNextPageToken,
+        dateFrom,
+        dateTo
     } = useMailStore();
 
     useEffect(() => { setView('sent'); }, [setView]);
 
     const { data, isLoading, error, refetch } = useQuery({
-        queryKey: ['emails', 'sent', searchQuery, currentPage],
+        queryKey: ['emails', 'sent', searchQuery, dateFrom, dateTo, currentPage],
         queryFn: async () => {
             try {
+                let fullQuery = searchQuery || '';
+                // Date filter logic
+                if (dateFrom) {
+                    const fromDate = new Date(dateFrom);
+                    fromDate.setDate(fromDate.getDate() - 1);
+                    fullQuery += ` after:${fromDate.toISOString().split('T')[0].replace(/-/g, '/')}`;
+                }
+                if (dateTo) {
+                    const toDate = new Date(dateTo);
+                    toDate.setDate(toDate.getDate() + 1);
+                    fullQuery += ` before:${toDate.toISOString().split('T')[0].replace(/-/g, '/')}`;
+                }
+
                 const response = await listEmails({
                     labelIds: ['SENT'],
                     maxResults: 50,
-                    query: searchQuery,
+                    q: fullQuery.trim() || undefined,
                     pageToken: pageTokens[currentPage]
                 });
                 return response;
             } catch (e: any) {
-                console.error("Failed to fetch sent emails:", e);
+                console.error("Failed to fetch sent:", e);
                 throw new Error(e.message || "Failed to fetch");
             }
         },
         retry: false,
-        refetchInterval: 30000,
+        refetchInterval: false,
     });
 
     // Sync to global store for AI assistant access

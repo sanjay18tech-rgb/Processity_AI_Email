@@ -11,6 +11,8 @@ interface MailState {
     currentPage: number;
     nextPageToken: string | null;
     pageTokens: (string | undefined)[];
+    dateFrom: string | null;
+    dateTo: string | null;
 
     userProfile: { emailAddress: string } | null;
 
@@ -25,7 +27,7 @@ interface MailState {
     setPage: (page: number) => void;
     setNextPageToken: (token: string | null) => void;
     resetPagination: () => void;
-    setUserProfile: (profile: { emailAddress: string } | null) => void;
+    setDateRange: (from: string | null, to: string | null) => void;
 }
 
 export const useMailStore = create<MailState>((set) => ({
@@ -39,6 +41,8 @@ export const useMailStore = create<MailState>((set) => ({
     nextPageToken: null,
     pageTokens: [undefined],
     userProfile: null,
+    dateFrom: null,
+    dateTo: null,
 
     setEmails: (newEmails) => set((state) => {
         if (!Array.isArray(newEmails)) return state;
@@ -64,7 +68,8 @@ export const useMailStore = create<MailState>((set) => ({
         filter: { labelIds: [view.toUpperCase()] },
         currentPage: 0,
         pageTokens: [undefined],
-        nextPageToken: null
+        nextPageToken: null,
+        // Reset date range on view change? Maybe keep it? Let's keep it for now unless requested otherwise
     }),
     setLoading: (isLoading) => set({ isLoading }),
     removeEmail: (id) => set((state) => ({
@@ -82,4 +87,5 @@ export const useMailStore = create<MailState>((set) => ({
     }),
     resetPagination: () => set({ currentPage: 0, pageTokens: [undefined], nextPageToken: null }),
     setUserProfile: (userProfile) => set({ userProfile }),
+    setDateRange: (from, to) => set({ dateFrom: from, dateTo: to, currentPage: 0, pageTokens: [undefined], nextPageToken: null }),
 }));

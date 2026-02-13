@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { useMutation } from '@tanstack/react-query';
 import { useAssistantStore } from '@/lib/store/assistant-store';
 import { useMailStore } from '@/lib/store/mail-store';
+import { useComposeStore } from '@/lib/store/compose-store';
 import { useAIAction } from '@/hooks/use-ai-action';
 import axios from 'axios';
 
@@ -88,11 +89,24 @@ export function AssistantPanel() {
                 .slice(-10)
                 .map(m => ({ role: m.role, content: m.content }));
 
+            const {
+                isOpen: isComposerOpen,
+                to: composerTo,
+                subject: composerSubject,
+                body: composerBody
+            } = useComposeStore.getState();
+
             const response = await axios.post('/api/assistant', {
                 message: text,
                 history: chatHistory,
                 context: {
                     currentView: view,
+                    isComposerOpen,
+                    composer: isComposerOpen ? {
+                        to: composerTo,
+                        subject: composerSubject,
+                        body: composerBody
+                    } : null,
                     currentEmail: currentEmail ? {
                         id: currentEmail.id,
                         from: currentEmail.from,

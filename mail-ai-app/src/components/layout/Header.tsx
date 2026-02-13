@@ -1,10 +1,13 @@
 "use client";
 
-import { Bell, Search, Moon, Sun } from "lucide-react";
+import { Bell, Search, Moon, Sun, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePickerWithRange } from '@/components/ui/date-range-picker';
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
+import { format } from 'date-fns';
+import { DateRange } from 'react-day-picker';
 
 import { useMailStore } from "@/lib/store/mail-store";
 import { useEffect, useState } from "react";
@@ -12,7 +15,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 
 export function Header() {
     const { setTheme, theme } = useTheme();
-    const { searchQuery, setSearchQuery } = useMailStore();
+    const { searchQuery, setSearchQuery, dateFrom, dateTo, setDateRange } = useMailStore();
     const [inputValue, setInputValue] = useState(searchQuery);
     const debouncedValue = useDebounce(inputValue, 300);
 
@@ -37,6 +40,46 @@ export function Header() {
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                     />
+                </div>
+                <div className="flex items-center gap-2">
+                    <DatePickerWithRange
+                        className="w-auto"
+                        date={{
+                            from: dateFrom ? new Date(dateFrom) : undefined,
+                            to: dateTo ? new Date(dateTo) : undefined
+                        }}
+                        setDate={(range: DateRange | undefined) => {
+                            if (range?.from) {
+                                // If single date selected, default to=from to filter specifically for that day
+                                // This fulfills "select single date -> get emails from that day"
+                                // Users can still select a different end date by clicking again (react-day-picker handles this behavior usually, 
+                                // though resetting 'to' might make it act like a new start selection. Let's see.)
+                                // Actually, standard behavior: Click 1 -> From sets. Click 2 -> To sets.
+                                // If we set To=From immediately, we lock the range.
+                                // Better approach: Let range be open in UI, but implicit in Query?
+                                // No, user wants explicit "emails from that day".
+                                // If I auto-fill TO, it acts as single day.
+                                const toDate = range.to || range.from;
+                                setDateRange(
+                                    format(range.from, 'yyyy/MM/dd'),
+                                    toDate ? format(toDate, 'yyyy/MM/dd') : null
+                                );
+                            } else {
+                                setDateRange(null, null);
+                            }
+                        }}
+                    />
+                    {(dateFrom || dateTo) && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDateRange(null, null)}
+                            title="Clear Dates"
+                            className="h-10 w-10 text-muted-foreground hover:text-foreground"
+                        >
+                            <X className="h-4 w-4" />
+                        </Button>
+                    )}
                 </div>
             </div>
 
