@@ -62,6 +62,7 @@ export default function TrashPage() {
         },
         retry: false,
         refetchInterval: false,
+        refetchOnWindowFocus: false,
     });
 
     // Sync to global store

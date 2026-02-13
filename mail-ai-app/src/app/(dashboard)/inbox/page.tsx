@@ -105,7 +105,8 @@ export default function InboxPage() {
             }
         },
         retry: false,
-        refetchInterval: 30000, // Auto-refresh every 30 seconds
+        refetchInterval: false, // Disabled auto-refresh to use Webhooks/Manual refresh
+        refetchOnWindowFocus: false, // Prevent accidental refreshes on tab switch
     });
 
     // Sync to global store for AI assistant access

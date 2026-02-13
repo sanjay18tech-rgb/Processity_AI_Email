@@ -59,6 +59,7 @@ export default function SentPage() {
         },
         retry: false,
         refetchInterval: false,
+        refetchOnWindowFocus: false,
     });
 
     // Sync to global store for AI assistant access
