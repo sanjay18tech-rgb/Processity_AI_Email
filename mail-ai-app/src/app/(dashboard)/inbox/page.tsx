@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 import { PaginationControls } from '@/components/mail/pagination-controls';
-import { DateRangePicker } from '@/components/mail/date-range-picker';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
 import { format, addDays, subDays } from 'date-fns';
 import { useState } from 'react';
