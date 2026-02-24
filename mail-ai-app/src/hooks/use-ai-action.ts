@@ -130,14 +130,13 @@ export function useAIAction() {
                 if (action.filters) {
                     const { after, before, ...otherFilters } = action.filters;
 
-                    // Handle date filters separately as they live in top-level state
+                    // Set date filters in both the filter object (for inbox query) and date range state (for date picker UI)
                     if (after || before) {
                         const { setDateRange } = useMailStore.getState();
                         setDateRange(after || null, before || null);
-                    }
-
-                    // Handle other filters
-                    if (Object.keys(otherFilters).length > 0) {
+                        // Also update filter.after/before so the inbox query uses them
+                        setFilter({ ...otherFilters, after: after || undefined, before: before || undefined });
+                    } else if (Object.keys(otherFilters).length > 0) {
                         setFilter(otherFilters);
                     }
                 }
@@ -245,13 +244,29 @@ export function useAIAction() {
                         break;
                     }
 
-                    // 2. Build a summary of search results and send to AI for summarization
+                    // 2. Always load search results into the store so open_email works
+                    const { setEmails, setDateRange } = useMailStore.getState();
+                    if (typeof setEmails === 'function') {
+                        setEmails(results);
+                    }
+
+                    // 3. Parse date filters from gmail query (after:YYYY/MM/DD before:YYYY/MM/DD)
+                    const afterMatch = action.query.match(/after:(\d{4}\/\d{2}\/\d{2})/i);
+                    const beforeMatch = action.query.match(/before:(\d{4}\/\d{2}\/\d{2})/i);
+                    if (afterMatch || beforeMatch) {
+                        setDateRange(
+                            afterMatch ? afterMatch[1] : null,
+                            beforeMatch ? beforeMatch[1] : null
+                        );
+                    }
+
+                    // 4. Build a summary of search results and send to AI for summarization
                     const resultsSummary = results.map((r: { id: string; from: string; subject: string; snippet: string; date: string }, i: number) =>
-                        `${i + 1}. From: ${r.from} | Subject: ${r.subject} | Date: ${r.date}\n   Preview: ${r.snippet}`
+                        `${i + 1}. ID:${r.id} | From: ${r.from} | Subject: ${r.subject} | Date: ${r.date}\n   Preview: ${r.snippet}`
                     ).join('\n');
 
                     const followUpResponse = await axios.post('/api/assistant', {
-                        message: `I searched the user's Gmail and found these results for "${action.query}":\n\n${resultsSummary}\n\nPlease summarize what was found and tell the user. If any email closely matches what they were looking for, mention it specifically with its details.`,
+                        message: `I searched the user's Gmail and found these results for "${action.query}":\n\n${resultsSummary}\n\nPlease summarize what was found and tell the user. Include the email IDs in your context so the user can ask to open specific emails later. If any email closely matches what they were looking for, mention it specifically with its details.`,
                         context: {
                             currentView: 'search_results',
                             emails: results.slice(0, 5).map((r: { id: string; from: string; subject: string; snippet: string; date: string; isRead: boolean }) => ({
@@ -268,15 +283,11 @@ export function useAIAction() {
                     const summaryMsg = followUpResponse.data?.message || `Found ${results.length} result(s) for "${action.query}".`;
                     addMessage({ role: 'assistant', content: summaryMsg });
 
-                    // If the AI returned an open_email action, execute it
-                    if (followUpResponse.data?.action?.type === 'open_email') {
-                        // Load the search results into the store first
-                        const { setEmails } = useMailStore.getState();
-                        if (typeof setEmails === 'function') {
-                            setEmails(results);
-                        }
+                    // 5. If the AI returned a secondary action, execute it
+                    const followUpAction = followUpResponse.data?.action;
+                    if (followUpAction) {
                         await new Promise(r => setTimeout(r, 500));
-                        await executeAction(followUpResponse.data.action);
+                        await executeAction(followUpAction);
                     }
                 } catch (error) {
                     console.error('Gmail search failed:', error);

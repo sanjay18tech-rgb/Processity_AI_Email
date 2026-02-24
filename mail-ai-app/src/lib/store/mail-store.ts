@@ -28,6 +28,7 @@ interface MailState {
     setNextPageToken: (token: string | null) => void;
     resetPagination: () => void;
     setDateRange: (from: string | null, to: string | null) => void;
+    setUserProfile: (userProfile: { emailAddress: string } | null) => void;
 }
 
 export const useMailStore = create<MailState>((set) => ({
