@@ -19,7 +19,7 @@ app.include_router(mail_router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"],  # Allow all origins (Vercel + Localhost)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
